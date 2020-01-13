@@ -77,7 +77,7 @@ func TestEncodeDecodeOneError(t *testing.T) {
 
 	const n = 10
 	const m = 3
-	var unexpected int
+	var unexpectedErrCnt, unexpectedDecoded, unexpected int
 	for i := 0; i < n; i++ {
 		if _, err := rnd.Read(encodeInput); err != nil {
 			t.Fatal(err)
@@ -88,9 +88,11 @@ func TestEncodeDecodeOneError(t *testing.T) {
 			copy(decodeInput, encoded2)
 			k := rnd.Intn(len(decodeInput))
 			for {
-				b := byte(rnd.Intn(256))
-				if b != decodeInput[k] {
-					decodeInput[k] = b
+				b := byte(rnd.Intn(16))
+				shift := rnd.Intn(5)
+				c := decodeInput[k]&^(byte(0x0f)<<shift) | (b << shift)
+				if c != decodeInput[k] {
+					decodeInput[k] = c
 					break
 				}
 			}
@@ -98,15 +100,34 @@ func TestEncodeDecodeOneError(t *testing.T) {
 			gotErrCnt, gotDecoded := Decode(decodeInput, decoded[:0])
 			wantErrCnt := 1
 			wantDecoded := encodeInput
-			if gotErrCnt != wantErrCnt || !bytes.Equal(gotDecoded, wantDecoded) {
-				t.Errorf("unexpected errCnt or decode result, input=%06x, encoded=%012x, errInjected=%012x, gotErrCnt=%d, wantErrCnt=%d, gotDecoded=%06x, wantDecoded=%06x",
-					encodeInput, encoded2, decodeInput, gotErrCnt, wantErrCnt, gotDecoded, wantDecoded)
+
+			unmatchErrCnt := gotErrCnt != wantErrCnt
+			unmatchDecoded := !bytes.Equal(gotDecoded, wantDecoded)
+			var unmatchText string
+			if unmatchErrCnt && unmatchDecoded {
+				unmatchText = "errCnt and decode result"
+			} else if unmatchErrCnt {
+				unmatchText = "errCnt"
+			} else if unmatchDecoded {
+				unmatchText = "decode result"
+			}
+
+			if unmatchErrCnt {
+				unexpectedErrCnt++
+			}
+			if unmatchDecoded {
+				unexpectedDecoded++
+			}
+			if unmatchErrCnt || unmatchDecoded {
+				t.Errorf("unexpected %s, input=%06x, encoded=%012x, errInjected=%012x, gotErrCnt=%d, wantErrCnt=%d, gotDecoded=%06x, wantDecoded=%06x",
+					unmatchText, encodeInput, encoded2, decodeInput, gotErrCnt, wantErrCnt, gotDecoded, wantDecoded)
 				unexpected++
 			}
 		}
 	}
 	if unexpected > 0 {
-		t.Logf("unexpected case count=%d, total=%d", unexpected, n*m)
+		t.Logf("unexpected=%d, unexpectedErrCnt=%d, unexpectedDecoded=%d, total=%d",
+			unexpected, unexpectedErrCnt, unexpectedDecoded, n*m)
 	}
 }
 
