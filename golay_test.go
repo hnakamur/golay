@@ -47,4 +47,5 @@ func TestEncodeDecode(t *testing.T) {
 	if got, want := total, max+1; got != want {
 		t.Errorf("test count unmatch, got=%d, want=%d", got, want)
 	}
+	t.Logf("tested %d patterns", total)
 }

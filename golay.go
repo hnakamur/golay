@@ -1,34 +1,9 @@
-// Copyright (c) 2012 Andrew Tridgell, All Rights Reserved
-// Copyright (c) 2019 Hiroaki Nakamura, All Rights Reserved
-//
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions
-// are met:
-//
-//  o Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-//  o Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in
-//    the documentation and/or other materials provided with the distribution.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-// FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-// COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
-// INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-// SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-// HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-// STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-// ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
-// OF THE POSSIBILITY OF SUCH DAMAGE.
-//
-
 // Package golay provides golay 23/12 error correction encoding and decoding
 package golay
 
 // Encode encodes n bytes of data into 2n coded bytes.
+// The output is appended to out and returns the result
+// of append the output to out.
 // n = len(in) must be a multiple 3.
 func Encode(in, out []byte) []byte {
 	if len(in)%3 != 0 {
@@ -58,9 +33,11 @@ func encode24(in, out []byte) []byte {
 }
 
 // Decode decodes n bytes of coded data into n/2 bytes of original data.
+// The output is appended to out and returns the result
+// of append the output to out.
+// Also the number of 12 bit words that required correction
+// is returned.
 // n = len(in) must be a multiple of 6.
-// the number of 12 bit words that required correction
-// and maybe modified out is returned.
 func Decode(in, out []byte) (int, []byte) {
 	if len(in)%6 != 0 {
 		panic("len(in) must be a multiple of 6")
