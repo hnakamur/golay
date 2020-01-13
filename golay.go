@@ -20,13 +20,13 @@ func Encode(in, out []byte) []byte {
 func encode24(in, out []byte) []byte {
 	v := uint16(in[0]) | uint16(in[1]&0x0F)<<8
 	syn := golay23EncodeTable[v]
-	out = append(out, uint8(syn&0xFF))
+	out = append(out, byte(syn&0xFF))
 	out = append(out, (in[0]&0x1F)<<3|byte(syn>>8))
 	out = append(out, (in[0]&0xE0)>>5|(in[1]&0x0F)<<3)
 
 	v = uint16(in[2]) | uint16(in[1]&0xF0)<<4
 	syn = golay23EncodeTable[v]
-	out = append(out, uint8(syn&0xFF))
+	out = append(out, byte(syn&0xFF))
 	out = append(out, (in[2]&0x1F)<<3|byte(syn>>8))
 	out = append(out, (in[2]&0xE0)>>5|(in[1]&0xF0)>>1)
 	return out
