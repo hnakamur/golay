@@ -2,17 +2,17 @@ package golay
 
 import (
 	"bytes"
-	crand "crypto/rand"
-	"encoding/binary"
 	"flag"
-	"math/rand"
 	"os"
 	"sync"
 	"testing"
-	"time"
+
+	"golang.org/x/exp/rand"
+
+	randutil "github.com/hnakamur/randutil/v3"
 )
 
-var seed = flag.Int64("seed", 0, "random seed")
+var seed = flag.Uint64("seed", 0, "random seed")
 
 func TestMain(m *testing.M) {
 	flag.Parse()
@@ -63,20 +63,21 @@ func TestEncodeDecodeNoError(t *testing.T) {
 	t.Logf("tested %d patterns", total)
 }
 
-func TestEncodeDecodeOneError(t *testing.T) {
+func TestEncodeDecode3bitsError(t *testing.T) {
 	if *seed == 0 {
-		*seed = newRandSeed()
+		*seed = randutil.NewSeed()
 	}
 	t.Logf("seed=%d", *seed)
-	rnd := rand.New(rand.NewSource(*seed))
+	src := rand.NewSource(*seed)
+	rnd := rand.New(src)
 
 	encodeInput := make([]byte, 3)
 	encoded := make([]byte, 0, 6)
 	decodeInput := make([]byte, 6)
 	decoded := make([]byte, 0, 3)
 
-	const n = 10
-	const m = 3
+	const n = 100
+	const m = 10
 	var unexpectedErrCnt, unexpectedDecoded, unexpected int
 	for i := 0; i < n; i++ {
 		if _, err := rnd.Read(encodeInput); err != nil {
@@ -86,22 +87,18 @@ func TestEncodeDecodeOneError(t *testing.T) {
 		encoded2 := Encode(encodeInput, encoded[:0])
 		for j := 0; j < m; j++ {
 			copy(decodeInput, encoded2)
-			k := rnd.Intn(len(decodeInput))
-			for {
-				b := byte(rnd.Intn(16))
-				shift := rnd.Intn(5)
-				c := decodeInput[k]&^(byte(0x0f)<<shift) | (b << shift)
-				if c != decodeInput[k] {
-					decodeInput[k] = c
-					break
-				}
+			positions := randutil.MultiIntnNoDup(src, 3, 6*8)
+			for _, pos := range positions {
+				i := pos / 8
+				shift := pos % 8
+				decodeInput[i] ^= 1 << shift
 			}
 
 			gotErrCnt, gotDecoded := Decode(decodeInput, decoded[:0])
-			wantErrCnt := 1
+			wantErrCnt := 0
 			wantDecoded := encodeInput
 
-			unmatchErrCnt := gotErrCnt != wantErrCnt
+			unmatchErrCnt := gotErrCnt == 0
 			unmatchDecoded := !bytes.Equal(gotDecoded, wantDecoded)
 			var unmatchText string
 			if unmatchErrCnt && unmatchDecoded {
@@ -118,7 +115,11 @@ func TestEncodeDecodeOneError(t *testing.T) {
 			if unmatchDecoded {
 				unexpectedDecoded++
 			}
-			if unmatchErrCnt || unmatchDecoded {
+			if unmatchErrCnt {
+				t.Logf("unexpected %s, input=%06x, encoded=%012x, errInjected=%012x, gotErrCnt=%d, wantErrCnt=%d, gotDecoded=%06x, wantDecoded=%06x",
+					unmatchText, encodeInput, encoded2, decodeInput, gotErrCnt, wantErrCnt, gotDecoded, wantDecoded)
+				unexpected++
+			} else if unmatchDecoded {
 				t.Errorf("unexpected %s, input=%06x, encoded=%012x, errInjected=%012x, gotErrCnt=%d, wantErrCnt=%d, gotDecoded=%06x, wantDecoded=%06x",
 					unmatchText, encodeInput, encoded2, decodeInput, gotErrCnt, wantErrCnt, gotDecoded, wantDecoded)
 				unexpected++
@@ -129,12 +130,4 @@ func TestEncodeDecodeOneError(t *testing.T) {
 		t.Logf("unexpected=%d, unexpectedErrCnt=%d, unexpectedDecoded=%d, total=%d",
 			unexpected, unexpectedErrCnt, unexpectedDecoded, n*m)
 	}
-}
-
-func newRandSeed() int64 {
-	var b [8]byte
-	if _, err := crand.Read(b[:]); err != nil {
-		return time.Now().UnixNano()
-	}
-	return int64(binary.BigEndian.Uint64(b[:]))
 }
